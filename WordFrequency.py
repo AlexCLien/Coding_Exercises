@@ -9,17 +9,24 @@ import re
 text = "Language models learn from language data, but language data does not contain every part of language."
 
 def parser(text):
-    word_list = re.split(r'\s+', text)
+    '''
+    Uses regex to split the string into a list of words. It then returns word_list.
+    '''
+    word_list = re.split(r'\s+', text) #regex expression splits the string by detecting one or more whitespace character. When it detects it makes the split.
     return word_list
 
 parsed_text = parser(text) 
 
-counted_words = {} 
+
 def count_word(list_of_words):
-    for word in list_of_words:
-        if word in counted_words:
+    '''
+    This function takes in a list. For each item in the list it adds to the dictionary as a key and a value of 1. If the key already exist in the dictionary then it adds to the value 1. The function returns the dictionary.
+    '''
+    counted_words = {} # initializes the dictionary
+    for word in list_of_words: # checks if word is in the dictionary
+        if word in counted_words: # if it is a key in the dictionary then add 1 to the value
             counted_words[word] += 1
-        else:
+        else: # if it is not in the dictionary, add the key with a value of 1
             counted_words[word] = 1
     return counted_words
 print(count_word(parsed_text))
