@@ -14,3 +14,7 @@ prediction_fail = clf.predict([[30]])
 
 print(prediction_pass)  # Output: ['pass']
 print(prediction_fail)  # Output: ['fail']
+
+#boundary numbers
+Z = [[48], [49], [50], [51], [58], [59], [60], [61]]
+print(clf.predict(Z))
