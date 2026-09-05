@@ -7,16 +7,18 @@ My idea is using a first we have a string of text. Then we seperate the string u
 import re
 
 text = "Language models learn from language data, but language data does not contain every part of language."
-
+text_2 = "don't mother-in-law hello!!! can't python3"
 def parser(text):
     '''
     Uses regex to split the string into a list of words. It then returns word_list.
     '''
-    word_list = re.split(r'\s+', text) #regex expression splits the string by detecting one or more whitespace character. When it detects it makes the split.
+    lowercase_word = text.lower()
+    clean_text = re.sub(r'[^\w\s]','',lowercase_word)
+    word_list = re.split(r'\s', clean_text) #regex expression splits the string by detecting one or more whitespace character. When it detects it makes the split.
     return word_list
 
 parsed_text = parser(text) 
-
+parsed_text_2 = parser(text_2)
 
 def count_word(list_of_words):
     '''
@@ -30,3 +32,4 @@ def count_word(list_of_words):
             counted_words[word] = 1
     return counted_words
 print(count_word(parsed_text))
+print(count_word(parsed_text_2))
