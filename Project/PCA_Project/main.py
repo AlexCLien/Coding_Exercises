@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 
@@ -64,14 +65,33 @@ print(data_centered[:5])
 print(len(data_centered))
 print(len(data_centered[0]))
 
+def calculate_covariance(centered_data):
+    covariance_matrix = []
+    for first_dimension in range(len(centered_data[0])):
+        covariance_row = []
+        for second_dimension in range(len(centered_data[0])):
+            products = []
+            for array in centered_data: #this for look iterates through every array in the data and calculates the product of the elements. it then adds it to the products list
+                products += [array[first_dimension] * array[second_dimension]]
+            sum_products = sum(products) #adds all the products todether
+            denominator = len(products) - 1 #takes the length and subtracts by 1
+            cov = sum_products / denominator #calculates the covariance
+            covariance_row.append(cov)
+        
+        covariance_matrix.append(covariance_row)
+    return covariance_matrix
 
-#first_elements = [row[0] for row in embedded_sentence]
-#mean_test = sum(first_elements) / len(embedded_sentence)
-#print(mean_test)
+matrix = calculate_covariance(data_centered)
 
+print(len(matrix))
+print(len(matrix[0]))
+print(matrix[0][1])
+print(matrix[1][0])
 
+print(matrix[10][25])
+print(matrix[25][10])
 
-#print(centered_data[:5])
-#print(len(centered_data))
-#print(len(centered_data[0]))
+matrix_np = np.array(matrix)
+cov_np = np.cov(data_centered, rowvar=False)
+print(np.allclose(cov_np, matrix))
 
