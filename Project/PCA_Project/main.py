@@ -3,15 +3,25 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.decomposition import PCA
 
-#model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-#sentences = ["The weather is lovely today", "It's so sunny outside"]
-#embeddings = model.encode(sentences)
-#similarities = model.similarity(embeddings, embeddings)
-#print(similarities)
-
-df = pd.read_csv('Project/PCA_Project/Train.csv')
-df_small = df.sample(n=200, random_state=42)
-print(df.head(1))
+def main():
+    df = pd.read_csv('Project/PCA_Project/Train.csv')
+    df_small = df.sample(n=200, random_state=42)
+    k = 2
+    embedded_sentence = transform_sentence(df_small)
+    data_centered = center_data(embedded_sentence)
+    matrix = calculate_covariance(data_centered)
+    eigenvalues, eigenvectors = calculate_eigen(matrix)
+    eigenvalues_sorted, eigenvectors_sorted = sort_eigen(
+        eigenvalues, eigenvectors
+    )
+    reduced_data = reduce(data_centered, eigenvectors_sorted, k)
+    validate_pca(
+        data_centered,
+        reduced_data,
+        eigenvalues_sorted,
+        eigenvectors_sorted,
+        k
+    )
 
 def transform_sentence(data):
     '''
@@ -23,20 +33,8 @@ def transform_sentence(data):
     model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
     embeddings = model.encode(my_list)
     return embeddings
-embedded_sentence = transform_sentence(df_small)
-print(embedded_sentence[0])
-print(embedded_sentence.shape)
-print(embedded_sentence.shape[1])
-'''
-def reduce_eigen_dimension(sentence_embedding, num_of_components):
 
-    We will first initialize a dictionary called eigen. This is where we want to store our eigenvector/eigenvalue pairs
-    Then we will calculate the covariance .
 
-    eigen = {}
-    total = 0
-    for dim[0] in sentence_embedding:
-'''
 def center_data(sentence_embedding):
     '''
     This function takes the sentence embeddings we get from the transform_sentence function
@@ -60,11 +58,9 @@ def center_data(sentence_embedding):
             centered_review.append(centering)
         centered_data.append(centered_review)
     return centered_data
-data_centered = center_data(embedded_sentence)
 
-print(data_centered[:5])
-print(len(data_centered))
-print(len(data_centered[0]))
+
+
 
 def calculate_covariance(centered_data):
     covariance_matrix = []
@@ -82,29 +78,11 @@ def calculate_covariance(centered_data):
         covariance_matrix.append(covariance_row)
     return covariance_matrix
 
-matrix = calculate_covariance(data_centered)
-
-
-matrix_np = np.array(matrix)
-cov_np = np.cov(data_centered, rowvar=False)
-print(np.allclose(cov_np, matrix))
 
 def calculate_eigen(matrix):
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
     return eigenvalues, eigenvectors
 
-eigenvalues, eigenvectors = calculate_eigen(matrix)
-print(eigenvalues.shape)
-print(eigenvectors.shape)
-print(eigenvalues[:5])
-print(eigenvalues[-5:])
-v = eigenvectors[:, 0]
-lambda_ = eigenvalues[0]
-
-left = matrix @ v
-right = lambda_ * v
-
-print(np.allclose(left, right))
 
 def sort_eigen(eigenvalues, eigenvectors):
     sorted_indices = np.argsort(eigenvalues)[::-1]
@@ -112,24 +90,11 @@ def sort_eigen(eigenvalues, eigenvectors):
     eigenvectors_sorted = eigenvectors[:,sorted_indices]
     return eigenvalues_sorted, eigenvectors_sorted
 
-eigenvalues_sorted, eigenvectors_sorted = sort_eigen(
-    eigenvalues, eigenvectors
-)
-print(eigenvalues_sorted[:5])
-print(eigenvalues_sorted[-5:])
-v = eigenvectors_sorted[:, 0]
-lambda_ = eigenvalues_sorted[0]
-
-print(np.allclose(matrix @ v, lambda_ * v))
 
 def reduce(data_centered, eigenvectors_sorted, k):
     reduced_vectors = eigenvectors_sorted[:, :k]
     reduced_data = np.matmul(data_centered, reduced_vectors)
     return reduced_data
-reduced_data = reduce(data_centered, eigenvectors_sorted, 2)
-
-
-print(reduced_data.shape)
 
 
 def validate_pca(
@@ -138,7 +103,7 @@ def validate_pca(
     eigenvalues_sorted,
     eigenvectors_sorted,
     k
-):
+    ):
     pca = PCA(n_components=k, svd_solver="full")
     sklearn_reduced = pca.fit_transform(np.array(data_centered))
 
@@ -166,10 +131,6 @@ def validate_pca(
 
     print("Mine:", eigenvalues_sorted[:k])
     print("sklearn:", pca.explained_variance_)
-validate_pca(
-        data_centered,
-        reduced_data,
-        eigenvalues_sorted,
-        eigenvectors_sorted,
-        2
-    )
+
+if __name__ == "__main__":
+    main()
