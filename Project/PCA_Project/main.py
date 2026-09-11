@@ -2,19 +2,45 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
 def main():
     df = pd.read_csv('Project/PCA_Project/Train.csv')
     df_small = df.sample(n=200, random_state=42)
+    labels = df_small["label"].to_numpy()
+
     k = 2
+
+
     embedded_sentence = transform_sentence(df_small)
     data_centered = center_data(embedded_sentence)
     matrix = calculate_covariance(data_centered)
+
+
     eigenvalues, eigenvectors = calculate_eigen(matrix)
     eigenvalues_sorted, eigenvectors_sorted = sort_eigen(
         eigenvalues, eigenvectors
     )
+
+
     reduced_data = reduce(data_centered, eigenvectors_sorted, k)
+
+    variance_dict = analyze_variation(eigenvalues_sorted)
+
+    print("variation near 50% ", find_k(variance_dict,.5))
+    print("variation near 80% ", find_k(variance_dict,.8))
+    print("variation near 90% ", find_k(variance_dict,.9))
+    print("variation near 95% ", find_k(variance_dict,.95))
+
+    reduced_for_analysis = reduce(
+        data_centered,
+        eigenvectors_sorted,
+        20
+    )
+    pc_1 = compare_labels_on_pc(reduced_data, labels, 1)
+    print(pc_1)
+    label_differences = analyze_label_difference(reduced_for_analysis, labels)
+    plot_label_differences(label_differences)
     validate_pca(
         data_centered,
         reduced_data,
@@ -22,6 +48,14 @@ def main():
         eigenvectors_sorted,
         k
     )
+
+
+    plot_pca(reduced_data, labels)
+    plot_variance(variance_dict)
+
+
+
+
 
 def transform_sentence(data):
     '''
@@ -60,8 +94,6 @@ def center_data(sentence_embedding):
     return centered_data
 
 
-
-
 def calculate_covariance(centered_data):
     covariance_matrix = []
     for first_dimension in range(len(centered_data[0])):
@@ -96,6 +128,54 @@ def reduce(data_centered, eigenvectors_sorted, k):
     reduced_data = np.matmul(data_centered, reduced_vectors)
     return reduced_data
 
+def p_variation(eigenvalues_sorted, k):
+    ratio = sum(eigenvalues_sorted[:k]) / sum(eigenvalues_sorted)
+    return ratio
+
+def analyze_variation(eigenvalues_sorted):
+    variation_by_k = {}
+    for k in range(1, len(eigenvalues_sorted) + 1):
+        key = k
+        value = p_variation(eigenvalues_sorted, k)
+        variation_by_k[key] = value
+    return variation_by_k
+
+def find_k(variance_dict, target):
+    for key, values in variance_dict.items():
+        if values >= target:
+            return key
+
+    return False
+
+def compare_labels_on_pc(reduced_data, labels, pc_index):
+
+    pc_values = reduced_data[:, pc_index]
+    label_0_values = pc_values[labels == 0]
+    label_1_values = pc_values[labels == 1]
+    length_0 = len(label_0_values)
+    length_1 = len(label_1_values)
+    mean_0 = np.mean(label_0_values)
+    mean_1 = np.mean(label_1_values)
+   
+    std_0 = np.std(label_0_values, ddof=1)
+    std_1 = np.std(label_1_values, ddof=1)
+    pstd = np.sqrt(((length_0 - 1) * std_0**2) + ((length_1 - 1) * std_1**2) / (length_0 + length_1 -2) )
+    d = (mean_0 - mean_1) / pstd
+    return d
+
+def analyze_label_difference(reduced_data, labels):
+    differences = {}
+
+    for pc_index in range(reduced_data.shape[1]):
+        difference = compare_labels_on_pc(
+            reduced_data,
+            labels,
+            pc_index
+        )
+
+        differences[pc_index + 1] = difference
+
+    return differences
 
 def validate_pca(
     data_centered,
@@ -132,5 +212,53 @@ def validate_pca(
     print("Mine:", eigenvalues_sorted[:k])
     print("sklearn:", pca.explained_variance_)
 
+
+def plot_pca(reduced_data, labels):
+    labels = np.array(labels)
+
+    plt.scatter(
+        reduced_data[labels == 0, 0],
+        reduced_data[labels == 0, 1],
+        label="0"
+    )
+
+    plt.scatter(
+        reduced_data[labels == 1, 0],
+        reduced_data[labels == 1, 1],
+        label="1"
+    )
+
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.title("PCA of Sentence Embeddings")
+    plt.legend()
+    plt.show()
+
+
+def plot_variance(variance_dict):
+    x_coords = list(variance_dict.keys())
+    y_coords = list(variance_dict.values())
+
+    plt.plot(x_coords, y_coords, marker='o', linestyle='-', color='b')
+
+    plt.xlabel('K values (X)')
+    plt.ylabel('Variance (Y)')
+    plt.title('Line Plot of k values vs variance')
+
+
+    plt.show()
+
+def plot_label_differences(difference_dict):
+    x_coords = list(difference_dict.keys())
+    y_coords = list(difference_dict.values())
+
+    plt.plot(x_coords, y_coords, marker='o', linestyle='-', color='b')
+    #plt.xticks(np.arange(0, 20, 1))
+    plt.xlabel('Principal Component # (X)')
+    plt.ylabel('Cohens D')
+    plt.title('PC# vs Cohens d')
+
+
+    plt.show()
 if __name__ == "__main__":
     main()
