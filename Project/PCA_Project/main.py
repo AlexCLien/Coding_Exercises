@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
+from sklearn.decomposition import PCA
 
 #model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 #sentences = ["The weather is lovely today", "It's so sunny outside"]
@@ -83,15 +84,73 @@ def calculate_covariance(centered_data):
 
 matrix = calculate_covariance(data_centered)
 
-print(len(matrix))
-print(len(matrix[0]))
-print(matrix[0][1])
-print(matrix[1][0])
-
-print(matrix[10][25])
-print(matrix[25][10])
 
 matrix_np = np.array(matrix)
 cov_np = np.cov(data_centered, rowvar=False)
 print(np.allclose(cov_np, matrix))
 
+def calculate_eigen(matrix):
+    eigenvalues, eigenvectors = np.linalg.eigh(matrix)
+    return eigenvalues, eigenvectors
+
+eigenvalues, eigenvectors = calculate_eigen(matrix)
+print(eigenvalues.shape)
+print(eigenvectors.shape)
+print(eigenvalues[:5])
+print(eigenvalues[-5:])
+v = eigenvectors[:, 0]
+lambda_ = eigenvalues[0]
+
+left = matrix @ v
+right = lambda_ * v
+
+print(np.allclose(left, right))
+
+def sort_eigen(eigenvalues, eigenvectors):
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    eigenvalues_sorted = eigenvalues[sorted_indices]
+    eigenvectors_sorted = eigenvectors[:,sorted_indices]
+    return eigenvalues_sorted, eigenvectors_sorted
+
+eigenvalues_sorted, eigenvectors_sorted = sort_eigen(
+    eigenvalues, eigenvectors
+)
+print(eigenvalues_sorted[:5])
+print(eigenvalues_sorted[-5:])
+v = eigenvectors_sorted[:, 0]
+lambda_ = eigenvalues_sorted[0]
+
+print(np.allclose(matrix @ v, lambda_ * v))
+
+def reduce(data_centered, eigenvectors_sorted, k):
+    reduced_vectors = eigenvectors_sorted[:, :k]
+    reduced_data = np.matmul(data_centered, reduced_vectors)
+    return reduced_data
+reduced_data = reduce(data_centered, eigenvectors_sorted, 2)
+
+
+print(reduced_data.shape)
+
+pca = PCA(n_components=2, svd_solver="full")
+sklearn_reduced = pca.fit_transform(np.array(data_centered))
+print (sklearn_reduced.shape)
+for i in range(2):
+    normal_diff = np.max(
+        np.abs(reduced_data[:, i] - sklearn_reduced[:, i])
+    )
+
+    flipped_diff = np.max(
+        np.abs(reduced_data[:, i] + sklearn_reduced[:, i])
+    )
+
+    print(i, normal_diff, flipped_diff)
+
+top_vectors = eigenvectors_sorted[:, :2]
+
+print(
+    np.abs(
+        top_vectors.T @ pca.components_.T
+    )
+)
+print("Mine:", eigenvalues_sorted[:2])
+print("sklearn:", pca.explained_variance_)
