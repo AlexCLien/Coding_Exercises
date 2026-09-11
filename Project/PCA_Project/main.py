@@ -131,26 +131,45 @@ reduced_data = reduce(data_centered, eigenvectors_sorted, 2)
 
 print(reduced_data.shape)
 
-pca = PCA(n_components=2, svd_solver="full")
-sklearn_reduced = pca.fit_transform(np.array(data_centered))
-print (sklearn_reduced.shape)
-for i in range(2):
-    normal_diff = np.max(
-        np.abs(reduced_data[:, i] - sklearn_reduced[:, i])
+
+def validate_pca(
+    data_centered,
+    reduced_data,
+    eigenvalues_sorted,
+    eigenvectors_sorted,
+    k
+):
+    pca = PCA(n_components=k, svd_solver="full")
+    sklearn_reduced = pca.fit_transform(np.array(data_centered))
+
+    for i in range(k):
+        normal_diff = np.max(
+            np.abs(reduced_data[:, i] - sklearn_reduced[:, i])
+        )
+
+        flipped_diff = np.max(
+            np.abs(reduced_data[:, i] + sklearn_reduced[:, i])
+        )
+
+        print(
+        f"PC{i + 1} normal diff: {normal_diff}, "
+        f"flipped diff: {flipped_diff}"
     )
 
-    flipped_diff = np.max(
-        np.abs(reduced_data[:, i] + sklearn_reduced[:, i])
+    top_eigenvectors = eigenvectors_sorted[:, :k]
+
+    print(
+        np.abs(
+            top_eigenvectors.T @ pca.components_.T
+        )
     )
 
-    print(i, normal_diff, flipped_diff)
-
-top_vectors = eigenvectors_sorted[:, :2]
-
-print(
-    np.abs(
-        top_vectors.T @ pca.components_.T
+    print("Mine:", eigenvalues_sorted[:k])
+    print("sklearn:", pca.explained_variance_)
+validate_pca(
+        data_centered,
+        reduced_data,
+        eigenvalues_sorted,
+        eigenvectors_sorted,
+        2
     )
-)
-print("Mine:", eigenvalues_sorted[:2])
-print("sklearn:", pca.explained_variance_)
