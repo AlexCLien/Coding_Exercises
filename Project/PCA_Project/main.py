@@ -5,18 +5,24 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
 def main():
+
+
+    # Load data
     df = pd.read_csv('Project/PCA_Project/Train.csv')
-    df_small = df.sample(n=200, random_state=42)
+    df_small = df.sample(n=500, random_state=42)
     labels = df_small["label"].to_numpy()
+
 
     k = 2
 
 
+    # Create embedding
     embedded_sentence = transform_sentence(df_small)
     data_centered = center_data(embedded_sentence)
     matrix = calculate_covariance(data_centered)
 
 
+    # Proccess matrix through PCA
     eigenvalues, eigenvectors = calculate_eigen(matrix)
     eigenvalues_sorted, eigenvectors_sorted = sort_eigen(
         eigenvalues, eigenvectors
@@ -25,6 +31,8 @@ def main():
 
     reduced_data = reduce(data_centered, eigenvectors_sorted, k)
 
+
+    # Calculate variance
     variance_dict = analyze_variation(eigenvalues_sorted)
 
     print("variation near 50% ", find_k(variance_dict,.5))
@@ -32,15 +40,28 @@ def main():
     print("variation near 90% ", find_k(variance_dict,.9))
     print("variation near 95% ", find_k(variance_dict,.95))
 
+
+
+    n_samples = embedded_sentence.shape[0]
+    n_features = embedded_sentence.shape[1]
+    max_components = min(n_samples - 1, n_features)
+
     reduced_for_analysis = reduce(
         data_centered,
         eigenvectors_sorted,
-        20
+        max_components
     )
-    pc_1 = compare_labels_on_pc(reduced_data, labels, 1)
-    print(pc_1)
-    label_differences = analyze_label_difference(reduced_for_analysis, labels)
-    plot_label_differences(label_differences)
+
+
+    # Calculate Cohen's D
+    label_cohen_d = analyze_label_cohen_d(reduced_for_analysis, labels)
+
+
+    # Calculate individual explained variance
+    iev_dict = individual_explained_variance(eigenvalues_sorted)
+
+
+    # Validate the PCA with SKLearns PCA algorithms
     validate_pca(
         data_centered,
         reduced_data,
@@ -50,11 +71,11 @@ def main():
     )
 
 
+    # Create the graphs
     plot_pca(reduced_data, labels)
     plot_variance(variance_dict)
-
-
-
+    plot_cohen_d(label_cohen_d)
+    plot_iev_vs_cohen_d(iev_dict, label_cohen_d)
 
 
 def transform_sentence(data):
@@ -95,6 +116,10 @@ def center_data(sentence_embedding):
 
 
 def calculate_covariance(centered_data):
+    '''
+    Takes our centered data and initializesa list called covariance matrix. it then creates an nxn covariance matrix
+    
+    '''
     covariance_matrix = []
     for first_dimension in range(len(centered_data[0])):
         covariance_row = []
@@ -112,11 +137,18 @@ def calculate_covariance(centered_data):
 
 
 def calculate_eigen(matrix):
+    '''
+    Uses Numpy linear algebra function to take a matrix and return its eigenvalues and eigenvectors
+    
+    '''
     eigenvalues, eigenvectors = np.linalg.eigh(matrix)
     return eigenvalues, eigenvectors
 
 
 def sort_eigen(eigenvalues, eigenvectors):
+    '''
+    Takes the eigenvalues and eigenvectors and, through numpy's argsort(), sorts them. It then returns eigenvalues_sorted and eigenvectors_sorted
+    '''
     sorted_indices = np.argsort(eigenvalues)[::-1]
     eigenvalues_sorted = eigenvalues[sorted_indices]
     eigenvectors_sorted = eigenvectors[:,sorted_indices]
@@ -124,15 +156,27 @@ def sort_eigen(eigenvalues, eigenvectors):
 
 
 def reduce(data_centered, eigenvectors_sorted, k):
+    '''
+    reduces the vectors of eigenvectors_sorted to k, it is then projected onto data_centered through matrix multiplication
+    '''
     reduced_vectors = eigenvectors_sorted[:, :k]
     reduced_data = np.matmul(data_centered, reduced_vectors)
     return reduced_data
 
 def p_variation(eigenvalues_sorted, k):
+    '''
+    finds how much of the total variance is explained by the first k principal components.
+    '''
     ratio = sum(eigenvalues_sorted[:k]) / sum(eigenvalues_sorted)
     return ratio
 
 def analyze_variation(eigenvalues_sorted):
+    '''
+    Calculate cumulative explained variance for differentnumbers of principal components.
+
+    Returns a dictionary mapping k to the proportion of total variance explained by the first k principal components.
+    
+    '''
     variation_by_k = {}
     for k in range(1, len(eigenvalues_sorted) + 1):
         key = k
@@ -141,6 +185,9 @@ def analyze_variation(eigenvalues_sorted):
     return variation_by_k
 
 def find_k(variance_dict, target):
+    '''
+    Finds a k that is less than or equal to the target.
+    '''
     for key, values in variance_dict.items():
         if values >= target:
             return key
@@ -163,7 +210,7 @@ def compare_labels_on_pc(reduced_data, labels, pc_index):
     d = (mean_0 - mean_1) / pstd
     return d
 
-def analyze_label_difference(reduced_data, labels):
+def analyze_label_cohen_d(reduced_data, labels):
     differences = {}
 
     for pc_index in range(reduced_data.shape[1]):
@@ -176,6 +223,16 @@ def analyze_label_difference(reduced_data, labels):
         differences[pc_index + 1] = difference
 
     return differences
+
+def individual_explained_variance(eigenvalues_sorted):
+    iev_dict = {} 
+
+    for i in range(len(eigenvalues_sorted)):  # range needs an integer
+        key = i + 1
+        iev = eigenvalues_sorted[i] / sum(eigenvalues_sorted)
+        iev_dict[key] = iev  
+
+    return iev_dict
 
 def validate_pca(
     data_centered,
@@ -248,9 +305,9 @@ def plot_variance(variance_dict):
 
     plt.show()
 
-def plot_label_differences(difference_dict):
-    x_coords = list(difference_dict.keys())
-    y_coords = list(difference_dict.values())
+def plot_cohen_d(cohen_dict):
+    x_coords = list(cohen_dict.keys())
+    y_coords = list(cohen_dict.values())
 
     plt.plot(x_coords, y_coords, marker='o', linestyle='-', color='b')
     #plt.xticks(np.arange(0, 20, 1))
@@ -260,5 +317,20 @@ def plot_label_differences(difference_dict):
 
 
     plt.show()
+
+def plot_iev_vs_cohen_d(iev_dict, cohen_dict):
+    x_coords = [iev_dict[key] for key in cohen_dict]
+    y_coords = [abs(value) for value in cohen_dict.values()]
+
+    plt.scatter(x_coords, y_coords)
+    plt.xlabel('Individual Explained Variance')
+    plt.ylabel('Absolute Cohens D')
+    plt.title('Individual Explained Variance vs Cohen D')
+
+    print(len(x_coords), len(y_coords))
+    
+    plt.show()
+
+
 if __name__ == "__main__":
     main()
