@@ -3,9 +3,21 @@ import requests
 def main():
     document = ReadDocument(input("File path: "))
     document_text = document.read_document()
-    summarizer = Summarizer(document_text)
-    summary = summarizer.summarize()
-    print(summary)
+
+    text_chunk = TextChunker(document_text,1500)
+    chunks = text_chunk.chunk_text()
+
+    user_prompt = input("User Prompt: ")
+
+    responses = []
+    for chunk in chunks:
+        chunk_analysis = ChunkAnalyzer(chunk, user_prompt)
+        response = chunk_analysis.analyze()
+        responses.append(response)
+
+    synthesizer = Synthesizer(responses, user_prompt)
+    final_response = synthesizer.synthesize()
+    print(final_response)
 
 class ReadDocument:
     def __init__(self, user_input):
@@ -17,26 +29,29 @@ class ReadDocument:
         read_text = text.read()
         return read_text
     
-class Summarizer:
-    def __init__(self, text):
+class ChunkAnalyzer:
+    def __init__(self, text, user_prompt):
         self.text = text
-        
+        self.user_prompt = user_prompt
     def build_request(self):
         request = {}
         system_message = {
         "role": "system",
-        "content": "You are a document summarizer. "
-        "Produce a concise and accurate summary of the provided document. "
-        "Prioritize the document's central argument, main ideas, important findings, "
-        "and conclusions. Omit minor details, unnecessary examples, and repeated information. "
-        "Do not introduce information that is not present in the document. "
-        "Organize the summary clearly and use bullet points only when they improve readability. "
-        "Prioritize completing the summary cleanly within the available output limit rather "
-        "than including every detail."
+        "content": "You are performing the preprocessing stage of document analysis."
+        "You are receiving one section of a larger document."
+
+        "Extract information from this section that is relevant to the user's request."
+        "Do not attempt to answer as though this section represents the entire document."
+        "Preserve important facts, findings, arguments, and details that may be useful"
+        "when the results from all sections are later synthesized."
+        "Do not introduce information not present in this section."
         }
         user_message = {
             "role": "user",
-            "content": "Summarize this document:\n\n" + self.text
+            "content": 
+            "User message: \n" + self.user_prompt + "\n\nDocument:\n" +
+            self.text
+                    
         }
         value = [system_message , user_message]
         request["messages"] = value
@@ -48,16 +63,77 @@ class Summarizer:
         response = requests.post("http://127.0.0.1:8080/v1/chat/completions", json=request)
         return response
 
-    def summarize(self):
+    def analyze(self):
 
         request = self.build_request()
         response = self.send_request(request)
         data = response.json()
         #print(response.json(scp summarizer.py t14:~/services/local-summarizer/))
-        summary = data["choices"][0]["message"]["content"]
+        analisis = data["choices"][0]["message"]["content"]
 
-        return summary
+        return analisis
 
+class TextChunker:
+    def __init__(self, text, chunk_size):
+        self.text = text
+        self.chunk_size = chunk_size
+
+    def chunk_text(self):
+        chunks = []
+        words = self.text.split()
+        for start in range(0, len(words), self.chunk_size):
+            stop = start + self.chunk_size
+            chunk = words[start:stop]
+            chunk_string = " ".join(chunk)
+            chunks.append(chunk_string)
+        return chunks
+
+class Synthesizer:
+    def __init__(self, responses, user_prompt):
+        self.responses = responses
+        self.user_prompt = user_prompt
+
+    def format_response(self):
+        formatted_responses = []
+        for idx, response in enumerate(self.responses, start=1):
+            formating = "Response from section " + str(idx) + ": \n" + response
+            formatted_responses.append(formating)
+        str_formatted_responses = "\n\n".join(formatted_responses)
+    
+        return str_formatted_responses
+    def build_request(self):
+        request = {}
+        str_formatted_response = self.format_response()
+        system_message = {
+        "role": "system",
+        "content": "You have all the analysis from all the sections."
+        "Synthesize them into one answer to the user's request"
+        }
+        user_message = {
+            "role": "user",
+            "content": 
+            "User message: \n" + self.user_prompt + "\n\nSection Analysis:\n" +
+            str_formatted_response
+                    
+        }
+        value = [system_message , user_message]
+        request["messages"] = value
+        request["max_tokens"] = 500
+        request["chat_template_kwargs"] = {"enable_thinking": False}
+        return request
+    def send_request(self, request):
+        response = requests.post("http://127.0.0.1:8080/v1/chat/completions", json=request)
+        return response
+
+    def synthesize(self):
+    
+        request = self.build_request()
+        response = self.send_request(request)
+        data = response.json()
+        #print(response.json(scp summarizer.py t14:~/services/local-summarizer/))
+        synthesized_data = data["choices"][0]["message"]["content"]
+
+        return synthesized_data
 
 if __name__ == "__main__":
     main()
