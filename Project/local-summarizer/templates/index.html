@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Local Document Analyzer</title>
+    </head>
+
+    <body>
+        <form action="/inputs" method="POST" enctype="multipart/form-data" id="analysisForm">
+        <label for="fname">File name:</label>
+        <input type="file" id="fname" name="fname"><br><br>
+        <label for="uprompt">User Prompt:</label>
+        <input type="text" id="uprompt" name="uprompt"><br><br>
+        <input type="submit" id="submitButton" value="Submit">
+        </form>
+
+        <h2>Analysis</h2>
+        <p>{{ result }}</p>
+
+        <script src="{{ url_for('static', filename='script.js') }}"></script>
+    </body>
+</html>

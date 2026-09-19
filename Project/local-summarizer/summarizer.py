@@ -1,33 +1,44 @@
 import requests
+from flask import Flask, request, render_template
 
-def main():
-    document = ReadDocument(input("File path: "))
+app = Flask(__name__)
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/inputs", methods=["POST"])
+def inputs():
+    file_input = request.files.get("fname")
+    document = ReadDocument(file_input)
     document_text = document.read_document()
-
+    #print(file_input)
     text_chunk = TextChunker(document_text,1500)
     chunks = text_chunk.chunk_text()
-
-    user_prompt = input("User Prompt: ")
-
+ 
+    user_prompt = request.form.get("uprompt")
     responses = []
     for chunk in chunks:
         chunk_analysis = ChunkAnalyzer(chunk, user_prompt)
         response = chunk_analysis.analyze()
         responses.append(response)
 
+
     synthesizer = Synthesizer(responses, user_prompt)
     final_response = synthesizer.synthesize()
-    print(final_response)
+ 
+    return render_template(
+    "index.html",
+    result=final_response
+    )
 
 class ReadDocument:
-    def __init__(self, user_input):
-        self.user_input = user_input
-
+    def __init__(self, file_input):
+        self.file_input = file_input
 
     def read_document(self):
-        text = open(self.user_input)
-        read_text = text.read()
-        return read_text
+        document_bytes = self.file_input.read()
+        document_decoded = document_bytes.decode("utf-8")
+        return document_decoded
     
 class ChunkAnalyzer:
     def __init__(self, text, user_prompt):
@@ -136,4 +147,4 @@ class Synthesizer:
         return synthesized_data
 
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)
