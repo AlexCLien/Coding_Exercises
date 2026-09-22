@@ -34,11 +34,11 @@ class DFA:
             if symbol not in self.alphabet:
                 return False
             try:
-                print(f"reading {symbol}: {current_state}", end=" -> ")
+                #print(f"reading {symbol}: {current_state}", end=" -> ")
 
                 current_state = self.transitions[current_state][symbol]
 
-                print(current_state)
+                #print(current_state)
 
             except KeyError:
                 return False
