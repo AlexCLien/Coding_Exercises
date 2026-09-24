@@ -13,9 +13,28 @@
         <input type="text" id="uprompt" name="uprompt"><br><br>
         <input type="submit" id="submitButton" value="Submit">
         </form>
+        
+        <form action="/chat" method="POST">
+        <input type="text" name="chat_prompt">
+        <input type="submit" value="Send">
+        </form>
 
         <h2>Analysis</h2>
-        <p>{{ result }}</p>
+        
+       <div class="results-container">
+         <!-- The | safe filter forces the browser to render the actual HTML elements -->
+            {{ result | safe }}
+
+            {% if our_chat %}
+                {% for message in our_chat %}
+                    <p>{{ message.role }}</p>
+                    <p>{{ message.content }}</p>
+
+                {% endfor %}
+            {% endif %}
+        </div>
+
+
 
         <script src="{{ url_for('static', filename='script.js') }}"></script>
     </body>
